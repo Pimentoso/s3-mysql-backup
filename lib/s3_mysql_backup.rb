@@ -100,13 +100,13 @@ class S3MysqlBackup
   end
 
   # remove old backups
-  #   - keep 30 days complete
-  #   - keep 90 days weekly beyond that
-  #   - keep only monthly after that
+  #   - keep 7 days complete
+  #   - keep 30 days weekly beyond that
+  #   - remove anything older than that
   def remove_old_backups
     today   = Date.today
-    weekly  = (today - 30)
-    monthly = (today - 120)
+    weekly  = (today - 7)
+    monthly = (today - 30)
 
     path = File.expand_path(config['backup_dir'])
 
@@ -115,19 +115,15 @@ class S3MysqlBackup
       filedate = Date.strptime(date, '%Y%m%d')
 
       if filedate < weekly && filedate >= monthly
-        # keep weeklies and also first of month
-        unless filedate.wday == 0 || filedate.day == 1
+        # keep weeklies
+        unless filedate.wday == 0
           FileUtils.rm_f(name)
           @s3utils.delete(name)
         end
       elsif filedate < monthly
         # delete all old local files
         FileUtils.rm_f(name)
-
-        # keep just first of month in S3
-        unless filedate.day == 1
-          @s3utils.delete(name)
-        end
+        @s3utils.delete(name)
       end
     end # Dir.each
   end # remove_old_backups
